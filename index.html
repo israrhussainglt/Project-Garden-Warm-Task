@@ -183,6 +183,14 @@
     <div class="qr-frame"><canvas id="qrCanvas" width="464" height="464"></canvas></div>
     <p class="qr-note" id="qrNote">Scan with your phone camera to open this explorer on mobile.</p>
     <div class="qr-url"><code id="qrUrl"></code><button id="qrCopy" class="ghost-btn">Copy</button></div>
+    <div class="qr-host" id="qrHostRow">
+      <label for="qrHost">Phone-reachable address</label>
+      <div class="qr-host-row">
+        <input id="qrHost" type="text" inputmode="url" placeholder="http://192.168.1.17:8080" spellcheck="false" autocomplete="off">
+        <button id="qrHostApply" class="ghost-btn">Apply</button>
+      </div>
+    </div>
+    <p class="qr-host-hint" id="qrHostHint"></p>
     <p class="qr-sub">No app needed · On a local demo, join the same Wi-Fi as this screen</p>
   </div>
 </div>
@@ -190,6 +198,7 @@
 <div class="toast" id="toast" role="status"></div>
 
 <script src="assets/qrcode.js"></script>
+<script src="host.js"></script>
 <script src="data.js"></script>
 <script src="app.js"></script>
 </body>

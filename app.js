@@ -303,7 +303,7 @@
     $("#drawerPhone").addEventListener("click", () => openQR({
       title: p.name,
       note: "Scan to open this attraction on your phone — details, hours and map pin included.",
-      url: deepLink("#a=" + p.id)
+      hash: "#a=" + p.id
     }));
     $("#drawerPos").textContent = `${places.indexOf(p) + 1} of ${places.length}`;
     $("#drawerBody").scrollTop = 0;
@@ -411,12 +411,22 @@
   $("#planQrBtn").addEventListener("click", () => openQR({
     title: "Your visit, to go",
     note: `Scan to load your ${state.plan.length}-stop plan on your phone, with the interactive map.`,
-    url: deepLink("#plan=" + state.plan.join(","))
+    hash: "#plan=" + state.plan.join(",")
   }));
 
   /* ---------- QR handoff ---------- */
   const qrModal = $("#qrModal");
-  function deepLink(hash) { return location.href.split("#")[0] + hash; }
+  const LOOPBACK = /^(localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0)$/;
+  function validBase(v) {
+    try {
+      const u = new URL(v);
+      return u.protocol === "http:" || u.protocol === "https:" ? u.origin : "";
+    } catch { return ""; }
+  }
+  function phoneBase() {
+    return validBase(window.GBTB_HOST || "") || validBase(localStorage.getItem("gbtb-host") || "") || location.origin;
+  }
+  function deepLink(hash) { return phoneBase() + location.pathname + hash; }
   function drawQR(text) {
     const qr = window.qrcode(0, "M");
     qr.addData(text); qr.make();
@@ -429,14 +439,33 @@
       if (qr.isDark(r, c)) ctx.fillRect(off + (c + quiet) * cell, off + (r + quiet) * cell, cell, cell);
     }
   }
-  function openQR({ title, note, url }) {
+  let qrHash = "#map";
+  function openQR({ title, note, hash }) {
+    qrHash = hash || "#map";
     $("#qrTitle").textContent = title;
     $("#qrNote").textContent = note;
-    $("#qrUrl").textContent = url;
-    drawQR(url);
+    refreshQR();
     qrModal.classList.add("open");
     qrModal.setAttribute("aria-hidden", "false");
     $("#qrClose").focus({ preventScroll: true });
+  }
+  function refreshQR() {
+    const url = deepLink(qrHash);
+    $("#qrUrl").textContent = url;
+    drawQR(url);
+    const auto = validBase(window.GBTB_HOST || "");
+    $("#qrHostRow").hidden = !!auto;
+    if (!auto) $("#qrHost").value = localStorage.getItem("gbtb-host") || "";
+    let reachable = false;
+    try {
+      const u = new URL(url);
+      reachable = /^https?:$/.test(u.protocol) && !LOOPBACK.test(u.hostname);
+    } catch {}
+    $("#qrHostHint").textContent = reachable
+      ? (auto ? "Address set by Start.bat — phones must join the same Wi-Fi as this screen."
+        : "Saved address — phones must be able to reach it (same Wi-Fi for a local IP).")
+      : "Phones can't reach this address. Double-click Start.bat to fill in this PC's Wi-Fi address, or paste it above.";
+    $("#qrHostHint").classList.toggle("warn", !reachable);
   }
   function closeQR() {
     qrModal.classList.remove("open");
@@ -454,6 +483,23 @@
     }
     toast("Link copied — paste it anywhere");
   });
+  $("#qrHostApply").addEventListener("click", () => {
+    const raw = $("#qrHost").value.trim();
+    if (!raw) {
+      localStorage.removeItem("gbtb-host");
+      refreshQR();
+      toast("Phone address reset");
+      return;
+    }
+    const base = validBase(raw);
+    if (!base) { toast("Enter a full address, e.g. http://192.168.1.17:8080"); return; }
+    localStorage.setItem("gbtb-host", base);
+    refreshQR();
+    toast("QR updated for phones");
+  });
+  $("#qrHost").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); $("#qrHostApply").click(); }
+  });
   $("#phoneBtn").addEventListener("click", () => {
     const hash = state.selected ? "#a=" + state.selected
       : state.plan.length ? "#plan=" + state.plan.join(",") : "#map";
@@ -462,7 +508,7 @@
       note: state.selected ? "Scan to pick up exactly where this screen left off."
         : state.plan.length ? "Scan to carry your visit plan and the map to your phone."
         : "Scan to open the interactive Gardens map on your mobile.",
-      url: deepLink(hash)
+      hash
     });
   });
 
